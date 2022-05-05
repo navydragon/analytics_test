@@ -15,8 +15,8 @@ from io import BytesIO
 #read_file.to_csv ('common.csv', index = None, header=True)
 #read_file =  pd.read_excel('data.xlsx', sheet_name='Подразделения')
 #read_file.to_csv ('divisions.csv', index = None, header=True)
-read_file =  pd.read_excel('students.xlsx', sheet_name='Лист1')
-read_file.to_csv ('students.csv', index = None, header=True)
+#read_file =  pd.read_excel('students.xlsx', sheet_name='Лист1')
+#read_file.to_csv ('students.csv', index = None, header=True)
 #read_file =  pd.read_excel('data.xlsx', sheet_name='КОРПУСА')
 #read_file.to_csv ('buildings.csv', index = None, header=True)
 
