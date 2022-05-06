@@ -548,7 +548,7 @@ if page == "Загрузка аудиторий РОАТ":
     fig.update_xaxes(range=[0, lessons['Количество занятий'].max()* 1.2])
     st.plotly_chart(fig)
     
-    fig = px.pie(lessons, values='Количество занятий', names='Корпус',title="Количество занятий по корпусам за 2 недели")
+    fig = px.pie(lessons, values='Количество занятий', names='Корпус',title="Количество занятий по корпусам")
     fig.update_traces(textinfo='percent', textfont_size=18)
     fig.update_layout(legend_title_text='Корпус', height = 450)
     fig.update_layout(font=dict(size=14,color="black"),title={'xanchor': 'center','x':0.5})
