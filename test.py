@@ -258,14 +258,16 @@ if page == "Корпуса":
     col2.metric("Площадь", filtered_data['Площадь'].sum()) 
     col3.metric("Сотрудников", filtered_data['Сотрудников'].sum()) 
     col1, col2, col3 = st.columns(3)
+    
     ppp_mean = round(filtered_data['Сотрудников'].sum() / filtered_data['Количество помещений'].sum(),2)
     spp_mean = round(filtered_data['Площадь'].sum() / filtered_data['Сотрудников'].sum(),2)
-    p_mean = round(filtered_data['Количество помещений'].mean(),2)
-    s_mean = round(filtered_data['Площадь'].mean(),2)
+    
     col1.metric("Сотрудников на помещение", ppp_mean ) 
     col2.metric("Площадь на сотрудника", spp_mean) 
     
     filtered_data = filtered_data.groupby(by=['Корпус','Адрес']).sum().reset_index()
+    p_mean = round(filtered_data['Количество помещений'].mean(),2)
+    s_mean = round(filtered_data['Площадь'].mean(),2)
     
     y = "Количество помещений"
     filtered_data = filtered_data.sort_values(by=y,ascending=False)  
@@ -284,9 +286,9 @@ if page == "Корпуса":
     filtered_data = filtered_data.sort_values(by=y,ascending=False)  
     
     fig = px.bar(filtered_data, x="Корпус", y=y,text_auto=True,color_discrete_sequence=color_discrete_sequence)
-    fig.update_layout(title="Площадь помещений ("+place_filter+") по корпусам",xaxis_title="Корпус",yaxis_title="Количество помещений")
+    fig.update_layout(title="Площадь помещений ("+place_filter+") по корпусам",xaxis_title="Корпус",yaxis_title="Площадь помещений")
     fig.add_hline(y=s_mean,line_dash="dot", line_color="#FF7468", annotation_text="Среднее = "+str(round(s_mean,2)   ),annotation_bgcolor="white", annotation_position="bottom right", annotation_font_size=15, annotation_font_color="black")    
-    fig.update_layout(xaxis_title = 'Корпус', width = 790, height = 450)
+    fig.update_layout(xaxis_title = 'Корпус', width = 1100, height = 450)
     fig.update_traces(textfont_size=15,textposition='outside', selector=dict(type='bar'))
     fig.update_yaxes(range=[0, filtered_data[y].max() * 1.2])
     fig.update_layout(font=dict(size=14,color="black"),title={'xanchor': 'center','x':0.5})
@@ -294,14 +296,16 @@ if page == "Корпуса":
     st.plotly_chart(fig)
 
     y = "Сотрудников на помещение"
-    filtered_data = filtered_data.sort_values(by=y,ascending=False)  
-    
+    filtered_data = filtered_data.sort_values(by=y,ascending=False)
+    filtered_data["Площадь на сотрудника"] = round(filtered_data['Площадь'] / filtered_data['Сотрудников'],2)  
+    ppp_mean = round(filtered_data['Сотрудников на помещение'].mean(),2)
     fig = px.bar(filtered_data, x="Корпус", y=y,text_auto=True,color_discrete_sequence=color_discrete_sequence)
 
     fig.add_hline(y=ppp_mean,line_dash="dot", line_color="#FF7468", annotation_text="Среднее = "+str(round(ppp_mean,2)   ), annotation_position="bottom right", annotation_bgcolor="white",annotation_font_size=15, annotation_font_color="black")    
-    fig.update_layout(title="Количество сотрудников на 1 помещение ("+place_filter+") по корпусам",xaxis_title = 'Корпус', width = 790, height = 450)
+    fig.update_layout(title="Количество сотрудников на 1 помещение ("+place_filter+") по корпусам")
     fig.update_traces(textfont_size=15,textposition='outside', selector=dict(type='bar'))
     fig.update_yaxes(range=[0, filtered_data[y].max() * 1.2])
+    fig.update_layout(xaxis_title = 'Корпус', width = 1100, height = 450)
     fig.update_layout(font=dict(size=14,color="black"),title={'xanchor': 'center','x':0.5})
     fig.update_layout({'plot_bgcolor': '#F5F5F5'})
     st.plotly_chart(fig)
@@ -309,11 +313,11 @@ if page == "Корпуса":
     y = "Площадь на сотрудника"
     filtered_data = filtered_data[filtered_data['Сотрудников'] > 0]
     filtered_data = filtered_data.sort_values(by=y,ascending=False)  
-    
+    spp_mean = round(filtered_data['Площадь на сотрудника'].mean(),2)
     fig = px.bar(filtered_data, x="Корпус", y=y,text_auto=True,color_discrete_sequence=color_discrete_sequence)
     
     fig.add_hline(y=spp_mean,line_dash="dot",line_color="#FF7468", annotation_text="Среднее = "+str(round(spp_mean,2)   ), annotation_position="bottom right", annotation_font_size=15, annotation_font_color="black")    
-    fig.update_layout(title="Площадь ("+place_filter+") на 1 сотрудника по корпусам",xaxis_title = 'Корпус', width = 790, height = 450)
+    fig.update_layout(title="Площадь ("+place_filter+") на 1 сотрудника по корпусам",xaxis_title = 'Корпус', width = 1100, height = 450)
     fig.update_traces(textfont_size=15,textposition='outside', selector=dict(type='bar'))
     fig.update_yaxes(range=[0, filtered_data[y].max() * 1.2])
     fig.update_layout(font=dict(size=14,color="black"),title={'xanchor': 'center','x':0.5})
@@ -399,6 +403,7 @@ if page == "Затраты на содержание имущества":
     fig = px.treemap(filtered_data, path=[px.Constant("Все"), 'Категория', 'Адрес', 'Статья расходов'], values='Расходы, руб.',color_discrete_sequence=color_discrete_sequence)
     fig.update_traces(root_color="lightgrey")
     fig.update_layout(margin = dict(t=50, l=25, r=25, b=25))
+    fig.update_layout(title="Диаграмма расходов в "+str(year)+" году", width=1100, height = 600)
     st.plotly_chart(fig)
 
     type_data = filtered_data.groupby(by=['Категория','Источник','Год'],as_index=False)['Расходы, руб.'].sum()
