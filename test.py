@@ -395,11 +395,11 @@ if page == "Затраты на содержание имущества":
     df_xlsx = to_excel(all_data)
     st.download_button(label='📥 Скачать', data=df_xlsx, file_name= 'Расходы_'+str(year)+'.xlsx')
     
-    if st.button('Показать развернутую диаграмму'):
-        fig = px.treemap(filtered_data, path=[px.Constant("Все"), 'Категория', 'Адрес', 'Статья расходов'], values='Расходы, руб.',color_discrete_sequence=color_discrete_sequence)
-        fig.update_traces(root_color="lightgrey")
-        fig.update_layout(margin = dict(t=50, l=25, r=25, b=25))
-        fig.show()
+    #if st.button('Показать развернутую диаграмму'):
+    fig = px.treemap(filtered_data, path=[px.Constant("Все"), 'Категория', 'Адрес', 'Статья расходов'], values='Расходы, руб.',color_discrete_sequence=color_discrete_sequence)
+    fig.update_traces(root_color="lightgrey")
+    fig.update_layout(margin = dict(t=50, l=25, r=25, b=25))
+    fig.show()
 
     type_data = filtered_data.groupby(by=['Категория','Источник','Год'],as_index=False)['Расходы, руб.'].sum()
    
