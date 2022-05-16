@@ -8,6 +8,7 @@ import datetime
 import math
 from io import BytesIO
 import openpyxl
+from st_aggrid import AgGrid
 #import locale
 #locale.setlocale(locale.LC_ALL, 'ru_RU.UTF-8')
 #data
@@ -74,14 +75,31 @@ try:
 except:
     page = 0
 
-page = st.sidebar.selectbox(
-    "Страница",("Структурные подразделения", "Корпуса","Затраты на содержание имущества","Загрузка аудиторий РУТ","Загрузка аудиторий РОАТ",),
-    page
+pages = [
+    [0,"Структурные подразделения"],
+    [1,"Корпуса"],
+    [2,"Затраты на содержание имущества"],
+    [3,"Загрузка аудиторий РОАТ"],
+    [4,"Загрузка аудиторий РУТ"]
+
+]
+st.sidebar.markdown('''### Раздел''')
+page = st.sidebar.selectbox("",pages,page,format_func=lambda x: x[1]
 )
 
-st.header('Анализ имущественного комплекса')
+   
 
-if page == "Структурные подразделения":
+st.header('Анализ имущественного комплекса')
+#Структурные подразделения
+if page[0] == 0:
+    st.sidebar.markdown('''
+    ### Параметры анализа
+    - [Площадь, занимаемая структурными подразделениями](#section-1)
+    - [Отношение учебной площади к административной](#section-2)
+    - [Площадь на 1 студента](#section-3)
+    - [Данные о подразделении](#section-4)
+    ''', unsafe_allow_html=True)
+
     def filter_fig1(data,object,place_type,show_type):
         if object != 'Все':
             data = data[data['Объект'] == object]  
@@ -110,7 +128,10 @@ if page == "Структурные подразделения":
 
     df_stacked = division_data.groupby(by='Аббревеатура').sum().reset_index().sort_values(by='Общая',ascending=False)
     df_stacked['Учебная к административной'] = (df_stacked['Учебная'] / df_stacked['Административная']).round(2)
-    st.subheader('Структурные подразделения')
+    
+    st.header('','section-1')
+    st.header('')
+    st.subheader('Структурные подразделения',)
     
     col1, col2, col3 = st.columns(3)
 
@@ -133,7 +154,12 @@ if page == "Структурные подразделения":
     fig.update_traces(textfont_size=15)
     st.plotly_chart(fig)
 
+    
     #учебная к административной
+    st.header('','section-2')
+    st.header('')
+    st.subheader('Отношение учебной площади к административной')
+    
     y = 'Учебная к административной'
     df_stacked = df_stacked.sort_values(by=y,ascending=False)
     median = df_stacked[y].median()
@@ -146,13 +172,23 @@ if page == "Структурные подразделения":
     fig.update_layout(font=dict(size=14,color="black"),title={'xanchor': 'center','x':0.5})
     fig.update_layout({'plot_bgcolor': '#F5F5F5'})
     st.plotly_chart(fig)
-    if (st.checkbox('Показать таблицу ')):
-        df_stacked
-
+    
+    df_stacked = df_stacked.drop(["Учит студентов","Численность"],axis=1)
+    df_stacked = df_stacked.rename(columns={"Аббревеатура": "Подразделение"})
+    AgGrid(df_stacked, height=300,  width='100%', fit_columns_on_grid_load=True,allow_unsafe_jscode=True)
+    df_xlsx = to_excel(df_stacked)
+    st.download_button(label='📥 Скачать', data=df_xlsx, file_name='Структурные подразделения.xlsx')
+    st.header('','section-3')
+    st.header('')
+    st.header('')
     st.subheader('Площадь на 1 студента (очной/очно-заочной формы обучения)')
 
     dd_stacked = division_data.groupby(by='Аббревеатура').sum().reset_index().sort_values(by='Общая',ascending=False)
     ss_data = dd_stacked.set_index('Аббревеатура').join(students_data.set_index('Аббревеатура'))
+    ss_data['Подразделение'] = ss_data.index
+    first_col = ss_data.pop("Подразделение")
+    ss_data.insert(0, "Подразделение", first_col)
+    ss_data = ss_data.drop(["Учит студентов","Численность"],axis=1)
     ss_data['количество студентов'] = ss_data['количество студентов'].fillna(0).astype('int')
     ss_data = ss_data[ss_data['количество студентов'] > 0]
     ss_data = ss_data.dropna(subset=['количество студентов']).drop(columns=['Наименование структурного подразделения'])
@@ -191,9 +227,12 @@ if page == "Структурные подразделения":
     fig.update_layout(font=dict(size=14,color="black"),title={'xanchor': 'center','x':0.5})
     st.plotly_chart(fig)
         
-    if (st.checkbox('Показать таблицу')):
-        ss_data
+    AgGrid(ss_data, height=300,  width='100%', fit_columns_on_grid_load=True,allow_unsafe_jscode=True)
+    df_xlsx = to_excel(ss_data)
+    st.download_button(label='📥 Скачать', data=df_xlsx, file_name='Площадь на 1 студента.xlsx')
     
+    st.header('','section-4') 
+    st.header('')
     st.subheader('Данные о подразделении')
     col3, col4 = st.columns(2)
     with col3:
@@ -228,7 +267,20 @@ if page == "Структурные подразделения":
     fig.update_layout({'plot_bgcolor': '#F5F5F5'})
     st.plotly_chart(fig)
 
-if page == "Корпуса":
+if page[0] == 1:
+    st.sidebar.markdown('''
+    ### Параметры анализа
+    - [Управляющие фильтры](#section-1)
+    - [Количество помещений](#section-2)
+    - [Площадь помещений](#section-3)
+    - [Количество сотрудников на 1 помещение](#section-4)
+    - [Площадь на 1 сотрудника](#section-5)
+    - [Анализ корпуса](#section-6)
+    ''', unsafe_allow_html=True)
+
+    st.header('','section-1')
+    st.header('')
+    st.subheader("Корпуса")
     all = pd.Series(['Все'])
     places = np.concatenate([all,buildings_data['Тип помещения'].unique()])
     col1,col2 = st.columns(2)
@@ -243,15 +295,20 @@ if page == "Корпуса":
     buildings_data['Площадь'] = buildings_data['Площадь'].fillna(0).astype(int,errors='raise')
     buildings_data['Сотрудников'] = buildings_data['Сотрудников'].fillna(0).astype(int,errors='raise')
     buildings_data = buildings_data[buildings_data["Количество помещений"] > 0]
+    
     if (len(buildings_filter) > 0):
         buildings_data = buildings_data[buildings_data["Корпус"].isin(buildings_filter)]
     stacked_data = buildings_data.groupby(by=['Корпус','Адрес','Тип помещения']).sum().reset_index()
     if place_filter != 'Все':
         filtered_data = stacked_data[stacked_data['Тип помещения'] == place_filter ]
     else:
-        filtered_data = stacked_data
+        filtered_data = stacked_data.groupby(by=['Корпус','Адрес']).sum().reset_index()
     filtered_data["Сотрудников на помещение"] = round(filtered_data['Сотрудников'] / filtered_data['Количество помещений'],2)
     filtered_data["Площадь на сотрудника"] = round(filtered_data['Площадь'] / filtered_data['Сотрудников'],2)
+    
+    AgGrid(filtered_data, height=300,  width='100%', fit_columns_on_grid_load=True,allow_unsafe_jscode=True)
+    df_xlsx = to_excel(filtered_data)
+    st.download_button(label='📥 Скачать', data=df_xlsx, file_name= place_filter+'.xlsx')
 
     col1, col2, col3 = st.columns(3)
     col1.metric("Помещений", filtered_data['Количество помещений'].sum()) 
@@ -269,6 +326,8 @@ if page == "Корпуса":
     p_mean = round(filtered_data['Количество помещений'].mean(),2)
     s_mean = round(filtered_data['Площадь'].mean(),2)
     
+    st.header('','section-2')
+    st.header('')
     y = "Количество помещений"
     filtered_data = filtered_data.sort_values(by=y,ascending=False)  
     
@@ -282,6 +341,8 @@ if page == "Корпуса":
     fig.update_layout({'plot_bgcolor': '#F5F5F5'})
     st.plotly_chart(fig)
 
+    st.header('','section-3')
+    st.header('')
     y = "Площадь"
     filtered_data = filtered_data.sort_values(by=y,ascending=False)  
     
@@ -295,10 +356,12 @@ if page == "Корпуса":
     fig.update_layout({'plot_bgcolor': '#F5F5F5'})
     st.plotly_chart(fig)
 
+    st.header('','section-4')
+    st.header('')
     y = "Сотрудников на помещение"
     filtered_data = filtered_data.sort_values(by=y,ascending=False)
     filtered_data["Площадь на сотрудника"] = round(filtered_data['Площадь'] / filtered_data['Сотрудников'],2)  
-    ppp_mean = round(filtered_data['Сотрудников на помещение'].mean(),2)
+    #ppp_mean = round(filtered_data['Сотрудников на помещение'].mean(),2)
     fig = px.bar(filtered_data, x="Корпус", y=y,text_auto=True,color_discrete_sequence=color_discrete_sequence)
 
     fig.add_hline(y=ppp_mean,line_dash="dot", line_color="#FF7468", annotation_text="Среднее = "+str(round(ppp_mean,2)   ), annotation_position="bottom right", annotation_bgcolor="white",annotation_font_size=15, annotation_font_color="black")    
@@ -310,10 +373,12 @@ if page == "Корпуса":
     fig.update_layout({'plot_bgcolor': '#F5F5F5'})
     st.plotly_chart(fig)
 
+    st.header('','section-5')
+    st.header('')
     y = "Площадь на сотрудника"
     filtered_data = filtered_data[filtered_data['Сотрудников'] > 0]
     filtered_data = filtered_data.sort_values(by=y,ascending=False)  
-    spp_mean = round(filtered_data['Площадь на сотрудника'].mean(),2)
+    #spp_mean = round(filtered_data['Площадь на сотрудника'].mean(),2)
     fig = px.bar(filtered_data, x="Корпус", y=y,text_auto=True,color_discrete_sequence=color_discrete_sequence)
     
     fig.add_hline(y=spp_mean,line_dash="dot",line_color="#FF7468", annotation_text="Среднее = "+str(round(spp_mean,2)   ), annotation_position="bottom right", annotation_font_size=15, annotation_font_color="black")    
@@ -324,6 +389,8 @@ if page == "Корпуса":
     fig.update_layout({'plot_bgcolor': '#F5F5F5'})
     st.plotly_chart(fig)
 
+    st.header('','section-6')
+    st.header('')
     st.subheader("Анализ корпуса")
     building = st.selectbox('Корпус',buildings_data['Корпус'].unique())
     stacked_data = buildings_data.groupby(by=['Корпус','Адрес','Тип помещения']).sum().reset_index()
@@ -332,7 +399,8 @@ if page == "Корпуса":
     st.subheader(building)
     st.caption(filter_data.loc[0,'Адрес'])
     show = filter_data.drop(columns=['Корпус','Адрес']).sort_values(by='Площадь',ascending=False).reset_index(drop=True)
-    show
+    
+    AgGrid(show, height=200,  width='100%', fit_columns_on_grid_load=True,allow_unsafe_jscode=True)
     
 
 
@@ -359,8 +427,8 @@ if page == "Корпуса":
 # col3.metric("Сотрудников", filtered_data['Сотрудников'].sum())
 
 
-if page == "Затраты на содержание имущества":
-    st.subheader(page)
+if page[0] == 2:
+    
     st.subheader("По категориям зданий")
     col1, col2 = st.columns(2)
     with col1:
@@ -511,7 +579,7 @@ if page == "Затраты на содержание имущества":
     df_xlsx = to_excel(pie_data)
     st.download_button(label='📥 Скачать', data=df_xlsx, file_name= 'Расходы по статьям.xlsx')
 
-if page == "Загрузка аудиторий РОАТ":
+if page[0] == 3:
     roat = pd.read_csv('roat.csv')
     roat["Дата"] = pd.to_datetime(roat["Дата"])
     roat["Время начала"] = pd.to_datetime(roat["Время начала"])
@@ -651,7 +719,7 @@ if page == "Загрузка аудиторий РОАТ":
 
 
 
-if page == "Загрузка аудиторий РУТ":
+if page[0] == 4:
     week1 = pd.read_csv('week2.csv')
     week2 = pd.read_csv('week1.csv')
     miit = pd.concat([week1,week2])
