@@ -26,7 +26,6 @@ from st_aggrid import AgGrid
 
 #read_file =  pd.read_excel('costs.xlsx', sheet_name='Лист1')
 #read_file.to_csv ('money.csv', index = None, header=True)
-print(st_aggrid.__version__)
 st.set_page_config(
      page_title="Анализ имущественного комплекса",
      layout="wide",
