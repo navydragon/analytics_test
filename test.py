@@ -48,7 +48,7 @@ def to_excel(df):
 divisions = pd.read_csv('https://raw.githubusercontent.com/navydragon/analytics_test/master/divisions.csv')
 division_data = pd.read_csv('https://raw.githubusercontent.com/navydragon/analytics_test/master/common.csv')
 students_data = pd.read_csv('students.csv')
-buildings_data = pd.read_csv('https://raw.githubusercontent.com/navydragon/analytics_test/master/buildings.csv')
+buildings_data = pd.read_csv('buildings.csv')
 money_data = pd.read_csv('money.csv')
 money_data = money_data.drop(columns=['№ п/п'])
 
@@ -289,7 +289,7 @@ if page[0] == 1:
         buildings_filter = st.multiselect(
         'Корпус',
         np.concatenate([buildings_data['Корпус'].unique()]),
-        ['ГУК-1','ГУК-2','ГУК-3','ГУК-4','ГУК-5','ГУК-6','ГУК-7','ГУК-12','ГУК-14','РОАТ 1 корпус','РОАТ 2 корпус','РОАТ 3 корпус','РОАТ УЛК'])
+        ['ГУК-1','ГУК-2','ГУК-3','ГУК-4','ГУК-5','ГУК-6','ГУК-7','ГУК-12','ГУК-14','РОАТ 1 корпус','РОАТ 2 корпус','РОАТ 3 корпус','РОАТ УЛК','Учебный корпус АВТ'])
     buildings_data['Количество помещений'] = buildings_data['Количество помещений'].fillna(0).astype(int,errors='raise')
     buildings_data['Площадь'] = buildings_data['Площадь'].fillna(0).astype(int,errors='raise')
     buildings_data['Сотрудников'] = buildings_data['Сотрудников'].fillna(0).astype(int,errors='raise')
@@ -427,8 +427,40 @@ if page[0] == 1:
 
 
 if page[0] == 2:
+    st.sidebar.markdown('''
+    ### Параметры анализа
+    - [Описание категорий зданий](#section-1)
+    - [Расходы по категориям зданий](#section-2)
+    - [Древовидная карта расходов](#section-3)
+    - [% расходов по различным источникам](#section-4)
+    - [Расходы по годам](#section-5)
+    - [Расходы по статьям затрат](#section-6)
+    ''', unsafe_allow_html=True)
+    st.header('','section-1')
+    st.header('')
+    st.subheader("Затраты на содержание имущества")
+    st.subheader("Описание категорий зданий")
+    col11, col22 = st.columns(2)
+    with col11:
+        category = st.selectbox('Категория',sorted(money_data['Категория'].unique(),reverse=True))
+    pd.options.display.float_format = '${:,.2f}'.format
+    money_data["Расходы, руб."] = money_data["Расходы, руб."].astype('int')
+    money_data["Расходы, млн. руб."] = money_data["Расходы, руб."] / 1000000
+    money_data["Расходы, млн. руб."] = money_data["Расходы, млн. руб."].apply(lambda x: round(x, 2))
     
-    st.subheader("По категориям зданий")
+    filtered_data = money_data.query("Категория == @category")
+    stacked_data = filtered_data.groupby(["Наименование","Адрес"],as_index=False).agg({'Площадь, кв.м.':['max']})
+    #,'Расходы, млн. руб.':['sum']
+    stacked_data.columns = stacked_data.columns.droplevel(1)
+    
+    #stacked_data["Расходы, руб."] = stacked_data["Расходы, руб."].astype('int')
+    stacked_data = stacked_data.drop_duplicates()
+    AgGrid(stacked_data, height=300,  width='100%', fit_columns_on_grid_load=True,allow_unsafe_jscode=True)
+    
+    ##############################################
+    st.header('','section-2')
+    st.header('')
+    st.subheader("Расходы по категориям зданий")
     col1, col2 = st.columns(2)
     with col1:
         year = st.selectbox('Год',sorted(money_data['Год'].unique(),reverse=True))
@@ -436,16 +468,16 @@ if page[0] == 2:
         source = st.selectbox('Источник финансирования',np.concatenate([pd.Series(['Все']),money_data['Источник'].unique()]))
     filtered_data = money_data.query("Год == @year")    
     if source != 'Все': filtered_data = filtered_data.query("Источник == @source") 
-    type_data = filtered_data.groupby(by=['Категория','Год'],as_index=False)['Расходы, руб.'].sum()
+    type_data = filtered_data.groupby(by=['Категория','Год'],as_index=False)['Расходы, млн. руб.'].sum()
     square_data = filtered_data.groupby(by=['Категория','Адрес'],as_index=False)['Площадь, кв.м.'].max()
     square_data = square_data.groupby(by=['Категория'],as_index=False).sum()
 
     all_data = type_data.merge(square_data,on='Категория',how='inner')
-    all_data['Расходы, руб.'] = all_data['Расходы, руб.'].astype(int)
+    #all_data['Расходы, руб.'] = all_data['Расходы, руб.'].astype(int)
     all_data['Площадь, кв.м.'] = all_data['Площадь, кв.м.'].astype(int)
-    all_data['Расходы на 1 кв.м.'] = (all_data['Расходы, руб.'] / all_data['Площадь, кв.м.']).astype(int)
+    all_data['Расходы на 1 кв.м., руб.'] = (all_data['Расходы, млн. руб.'] * 1000000 / all_data['Площадь, кв.м.']).astype(int)
     
-    fig = px.pie(type_data, values='Расходы, руб.', names='Категория',title="Доля расходов по категориям в "+str(year)+" году",color_discrete_sequence=color_discrete_sequence)
+    fig = px.pie(type_data, values='Расходы, млн. руб.', names='Категория',title="Доля расходов по категориям в "+str(year)+" году",color_discrete_sequence=color_discrete_sequence)
     fig.update_traces(hoverinfo='label+value', textinfo='percent', textfont_size=16)
     fig.update_layout(legend_title_text='Тип помещений', width=1100, height = 450)
     fig.update_layout(font=dict(size=14,color="black"),title={'xanchor': 'center','x':0.5})
@@ -453,31 +485,36 @@ if page[0] == 2:
     
     st.plotly_chart(fig)
 
-    fig = px.bar(all_data, x="Категория", y='Расходы на 1 кв.м.',text_auto=True, color='Категория',color_discrete_sequence=color_discrete_sequence)
+    fig = px.bar(all_data, x="Категория", y='Расходы на 1 кв.м., руб.',text_auto=True, color='Категория',color_discrete_sequence=color_discrete_sequence)
     fig.update_traces(textfont_size=20,textposition='outside', selector=dict(type='bar'))
-    fig.update_yaxes(range=[0, all_data['Расходы на 1 кв.м.'].max() * 1.2])
-    fig.update_layout(title="Расходы на 1 кв.м. по категориям зданий в "+str(year)+" году",legend_title_text='Тип помещений', width=700, height = 450)
+    fig.update_yaxes(range=[0, all_data['Расходы на 1 кв.м., руб.'].max() * 1.2])
+    fig.update_layout(title="Расходы на 1 кв.м., руб. по категориям зданий в "+str(year)+" году",legend_title_text='Тип помещений', width=700, height = 450)
     fig.update_layout(font=dict(size=14,color="black"),title={'xanchor': 'center','x':0.5})
     fig.update_layout({'plot_bgcolor': '#F5F5F5'})
     st.plotly_chart(fig)
 
-    all_data
-    
+    AgGrid(all_data, height=200,  width='100%', fit_columns_on_grid_load=True,allow_unsafe_jscode=True)
     df_xlsx = to_excel(all_data)
     st.download_button(label='📥 Скачать', data=df_xlsx, file_name= 'Расходы_'+str(year)+'.xlsx')
     
-    
-    fig = px.treemap(filtered_data, path=[px.Constant("Все"), 'Категория', 'Адрес', 'Статья расходов'], values='Расходы, руб.',color_discrete_sequence=color_discrete_sequence)
+    ######################################
+    st.header('','section-3')
+    st.header('')
+    fig = px.treemap(filtered_data, path=[px.Constant("Все"), 'Категория', 'Адрес', 'Статья расходов'], values='Расходы, млн. руб.',color_discrete_sequence=color_discrete_sequence)
     fig.update_traces(root_color="lightgrey")
     fig.update_layout(margin = dict(t=50, l=25, r=25, b=25))
     fig.update_layout(title="Диаграмма расходов в "+str(year)+" году", width=1100, height = 600)
     st.plotly_chart(fig)
 
-    type_data = filtered_data.groupby(by=['Категория','Источник','Год'],as_index=False)['Расходы, руб.'].sum()
+    #######################################
+    st.header('','section-4')
+    st.header('')
+    st.subheader('Расходы по различным источникам')
+    type_data = filtered_data.groupby(by=['Категория','Источник','Год'],as_index=False)['Расходы, млн. руб.'].sum()
    
     fig = px.histogram (type_data,
                       x="Категория",
-                      y="Расходы, руб.",
+                      y="Расходы, млн. руб.",
                       color="Источник",
                       barnorm = "percent",
                       text_auto= '.2s',
@@ -494,11 +531,14 @@ if page[0] == 2:
     fig.update_traces(textfont_size=18)
     st.plotly_chart(fig)
 
-    type_data
     
+    AgGrid(type_data, height=300,  width='100%', fit_columns_on_grid_load=True,allow_unsafe_jscode=True)
     df_xlsx = to_excel(type_data)
     st.download_button(label='📥 Скачать', data=df_xlsx, file_name= 'Расходы_по_источникам_'+str(year)+'.xlsx')
-
+    
+    ######################################
+    st.header('','section-5')
+    st.header('')
     st.subheader("Расходы по годам")
     col3, col4 = st.columns(2)
     with col3:
@@ -509,18 +549,18 @@ if page[0] == 2:
     else: filtered_data = money_data
     if source != 'Все': filtered_data = filtered_data.query("Источник == @source")
 
-    type_data = filtered_data.groupby(by=['Категория','Год'],as_index=False)['Расходы, руб.'].sum()
+    type_data = filtered_data.groupby(by=['Категория','Год'],as_index=False)['Расходы, млн. руб.'].sum()
     square_data = filtered_data.groupby(by=['Категория','Адрес'],as_index=False)['Площадь, кв.м.'].max()
     square_data = square_data.groupby(by=['Категория'],as_index=False).sum()
 
     all_data = type_data.merge(square_data,on='Категория',how='inner')
-    all_data['Расходы, руб.'] = all_data['Расходы, руб.'].astype(int)
+    #all_data['Расходы, руб.'] = all_data['Расходы, млн. руб.'].astype(int)
     all_data['Площадь, кв.м.'] = all_data['Площадь, кв.м.'].astype(int)
-    all_data['Расходы на 1 кв.м.'] = (all_data['Расходы, руб.'] / all_data['Площадь, кв.м.']).astype(int)
+    all_data['Расходы на 1 кв.м.'] = (all_data['Расходы, млн. руб.'] * 1000000 / all_data['Площадь, кв.м.']).astype(int)
 
-    fig = px.bar(all_data, x="Год", y="Расходы, руб.", color="Категория",barmode='group',text_auto='.0s',color_discrete_sequence=color_discrete_sequence)
+    fig = px.bar(all_data, x="Год", y="Расходы, млн. руб.", color="Категория",barmode='group',text_auto='.3s',color_discrete_sequence=color_discrete_sequence)
     fig.update_traces(textfont_size=16, textangle=0, textposition="outside", cliponaxis=False)
-    fig.update_yaxes(range=[0, all_data['Расходы, руб.'].max() * 1.2])
+    fig.update_yaxes(range=[0, all_data['Расходы, млн. руб.'].max() * 1.2])
     fig.update_layout(title="Расходы по годам (источник финансирования: "+source+")")
     fig.update_layout(legend_title_text='Категория здания', width=1100, height = 450)
     fig.update_layout(font=dict(size=14,color="black"),title={'xanchor': 'center','x':0.5})
@@ -540,13 +580,15 @@ if page[0] == 2:
     fig.update_traces(textfont_size=18)
     st.plotly_chart(fig)
 
-    all_data
     
+    AgGrid(all_data, height=300,  width='100%', fit_columns_on_grid_load=True,allow_unsafe_jscode=True)
     df_xlsx = to_excel(all_data)
     st.download_button(label='📥 Скачать', data=df_xlsx, file_name= 'Расходы_по_годам_.xlsx')
 
-    
-    st.subheader("По статьям затрат")
+    #################################
+    st.header('','section-6')
+    st.header('')
+    st.subheader("Расходы по статьям затрат")
     col1, col2 = st.columns(2)
     all = pd.Series(['Все'])
     with col1:
@@ -566,15 +608,16 @@ if page[0] == 2:
             return row["Статья расходов"]
         else:
             return "Другое"
-    pie_data = filtered_data.groupby('Статья расходов').sum().drop(columns=['Площадь, кв.м.','Год']).sort_values(by='Расходы, руб.',ascending=False).reset_index()
-    pie_data['% расходов'] = pie_data['Расходы, руб.'] * 100 / pie_data['Расходы, руб.'].sum()
+    pie_data = filtered_data.groupby('Статья расходов').sum().drop(columns=['Площадь, кв.м.','Год']).sort_values(by='Расходы, млн. руб.',ascending=False).reset_index()
+    pie_data['% расходов'] = pie_data['Расходы, млн. руб.'] * 100 / pie_data['Расходы, млн. руб.'].sum()
     pie_data['Статья расходов'] = pie_data.apply(rashod_type,axis=1)
-    pie_data = pie_data.groupby('Статья расходов').sum().sort_values(by='Расходы, руб.',ascending=False).reset_index()
+    pie_data = pie_data.groupby('Статья расходов').sum().sort_values(by='Расходы, млн. руб.',ascending=False).reset_index()
     
-    fig = px.pie(pie_data, values='Расходы, руб.', names='Статья расходов',title="Доля расходов по типам")
+    fig = px.pie(pie_data, values='Расходы, млн. руб.', names='Статья расходов',title="Доля расходов по типам")
     fig.update_traces(textinfo='percent', textfont_size=20)
     st.plotly_chart(fig)
-    pie_data
+    
+    AgGrid(pie_data, height=250,  width='100%', fit_columns_on_grid_load=True,allow_unsafe_jscode=True)
     df_xlsx = to_excel(pie_data)
     st.download_button(label='📥 Скачать', data=df_xlsx, file_name= 'Расходы по статьям.xlsx')
 
