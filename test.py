@@ -26,6 +26,10 @@ from st_aggrid import AgGrid
 
 #read_file =  pd.read_excel('costs.xlsx', sheet_name='Лист1')
 #read_file.to_csv ('money.csv', index = None, header=True)
+
+#read_file =  pd.read_excel('revenues.xlsx', sheet_name='Лист1')
+#read_file.to_csv ('revenues.csv', index = None, header=True)
+
 st.set_page_config(
      page_title="Анализ имущественного комплекса",
      layout="wide",
@@ -51,6 +55,8 @@ students_data = pd.read_csv('students.csv')
 buildings_data = pd.read_csv('buildings.csv')
 money_data = pd.read_csv('money.csv')
 money_data = money_data.drop(columns=['№ п/п'])
+
+revenue_data = pd.read_csv('revenues.csv')
 
 division_data = division_data.merge(divisions,how='inner', on='Аббревеатура')
 division_data['Численность'] = division_data['Численность'].fillna(0).astype(int,errors='ignore')
@@ -96,7 +102,9 @@ if page[0] == 0:
     - [Площадь, занимаемая структурными подразделениями](#section-1)
     - [Отношение учебной площади к административной](#section-2)
     - [Площадь на 1 студента](#section-3)
+    - [Доходы на 1 кв.м.](#section-5)
     - [Данные о подразделении](#section-4)
+    
     ''', unsafe_allow_html=True)
 
     def filter_fig1(data,object,place_type,show_type):
@@ -230,6 +238,60 @@ if page[0] == 0:
     df_xlsx = to_excel(ss_data)
     st.download_button(label='📥 Скачать', data=df_xlsx, file_name='Площадь на 1 студента.xlsx')
     
+    
+
+    #division_data = division_data.rename(columns={"Подразделение":"Подразделение1"})
+    #division_data = division_data.rename(columns={"Аббревеатура":"Подразделение"})
+    st.header('','section-5') 
+    st.header('')
+    division_data_gr = division_data.groupby('Аббревеатура').sum()
+    division_data_gr = division_data_gr.drop(["Учит студентов","Численность"],axis=1)
+    revenue_data['Подразделение'] = revenue_data['Подразделение'].str.strip()
+    revenue_data = revenue_data.set_index('Подразделение')
+    res = revenue_data.join(division_data_gr,how="inner")
+
+    st.subheader("Доходы на 1 кв. м. площади")
+    col11, col22 = st.columns(2)
+    with col11:
+        place_types= ['Полезная','Учебная','Общая']
+        place_type = st.selectbox('Тип площади',place_types,key=2)
+    with col22:
+        revenue_types= ['Всего','Субсидия без ЦФ','Субсидия с ЦФ','Внебюджет']
+        revenue_type = st.selectbox('Вид дохода',revenue_types)  
+    res['Доходы на 1 кв. м.'] = res[revenue_type] / res[place_type]
+    res['Доходы на 1 кв. м.'] = res['Доходы на 1 кв. м.'].astype('int')
+    res = res.sort_values(by="Доходы на 1 кв. м.",ascending=False)
+    fig = px.bar(res, x=res.index, y='Доходы на 1 кв. м.',text_auto='.0f')
+    l_mean = res['Доходы на 1 кв. м.'].mean()
+    fig.add_hline(y=l_mean,line_dash="dot", line_color="#FF7468", annotation_text="Среднее = "+str(round(l_mean,2)   ), annotation_position="top right", annotation_font_size=14, annotation_font_color="black")    
+    fig.update_layout(xaxis_title = 'Подразделение', width = 1100, height = 450,)
+    fig.update_traces(marker_color= '#3486FF',textfont_size=20,textposition='outside', selector=dict(type='bar'))
+    fig.update_yaxes(range=[0, res['Доходы на 1 кв. м.'].max() * 1.2])
+    fig.update_layout(title="Доходы ("+revenue_type + "), приходящиеся на 1 кв.м. площади ("+place_type+")")
+    fig.update_layout(font=dict(size=14,color="black"),title={'xanchor': 'center','x':0.5})
+    fig.update_layout({'plot_bgcolor': '#F5F5F5'})
+    fig.update_traces(textfont_size=18)
+    st.plotly_chart(fig)
+
+    #scatter
+    
+    fig = px.scatter(res, text=res.index, x=place_type, y=revenue_type,size='Доходы на 1 кв. м.')
+    fig.update_layout(width = 1100, height = 450,)
+    fig.update_traces(textposition='top center', selector=dict(type='scatter'),
+        textfont=dict(size=15,color="black"),
+        marker= dict(color = '#3486FF'))
+    fig.update_yaxes(range=[0, res[revenue_type].max() * 1.2])
+    #fig.update_layout(xaxis_title="Количество студентов")
+    fig.update_layout(font=dict(size=14,color="black"),title={'xanchor': 'center','x':0.5})
+    st.plotly_chart(fig)
+    res.drop(columns=['Доходы на 1 кв. м.'])
+    res = res.reset_index(level=0)
+    res = res.rename(columns={"index":"Подразделение"})
+    res
+    
+    df_xlsx = to_excel(res)
+    st.download_button(label='📥 Скачать', data=df_xlsx, file_name='Доход_на_1_квм.xlsx')
+
     st.header('','section-4') 
     st.header('')
     st.subheader('Данные о подразделении')
@@ -622,12 +684,25 @@ if page[0] == 2:
     st.download_button(label='📥 Скачать', data=df_xlsx, file_name= 'Расходы по статьям.xlsx')
 
 if page[0] == 3:
+    st.sidebar.markdown('''
+    ### Параметры анализа
+    - [Количество задействованных аудиторий](#section-1)
+    - [Количество занятий](#section-2)
+    - [Фильтры для анализа загруженности](#section-3)
+    - [Количество занятий по дням](#section-4)
+    - [% загрузки аудиторий](#section-5)
+    ''', unsafe_allow_html=True)
+    st.header('','section-1')
+    st.header('')
+   
+
     roat = pd.read_csv('roat.csv')
     roat["Дата"] = pd.to_datetime(roat["Дата"])
     roat["Время начала"] = pd.to_datetime(roat["Время начала"])
     roat["Время окончания"] = pd.to_datetime(roat["Время окончания"])
     
     roat = roat.drop_duplicates()
+    
     #work = roat[['Дата','Время начала','Время окончания','Помещение','Корпус']]
     #work = work.drop_duplicates()
     #st.write(work.duplicated().sum())
@@ -762,6 +837,17 @@ if page[0] == 3:
 
 
 if page[0] == 4:
+    st.sidebar.markdown('''
+    ### Параметры анализа
+    - [Количество задействованных аудиторий](#section-1)
+    - [Количество занятий](#section-2)
+    - [Фильтры для анализа загруженности](#section-3)
+    - [Количество занятий по дням](#section-4)
+    - [% загрузки аудиторий](#section-5)
+    ''', unsafe_allow_html=True)
+    st.header('','section-1')
+    st.header('')
+
     week1 = pd.read_csv('week2.csv')
     week2 = pd.read_csv('week1.csv')
     miit = pd.concat([week1,week2])
