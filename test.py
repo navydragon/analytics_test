@@ -9,6 +9,12 @@ import math
 from io import BytesIO
 import openpyxl
 from st_aggrid import AgGrid
+import textwrap
+
+#import os
+
+#if not os.path.exists("images"):
+    # os.mkdir("images")
 #import locale
 #locale.setlocale(locale.LC_ALL, 'ru_RU.UTF-8')
 #data
@@ -48,6 +54,9 @@ def to_excel(df):
     writer.save()
     processed_data = output.getvalue()
     return processed_data
+
+def customwrap(s,width=20):
+    return "<br>".join(textwrap.wrap(s,width=width))
 
 divisions = pd.read_csv('https://raw.githubusercontent.com/navydragon/analytics_test/master/divisions.csv')
 division_data = pd.read_csv('https://raw.githubusercontent.com/navydragon/analytics_test/master/common.csv')
@@ -528,7 +537,8 @@ if page[0] == 2:
         year = st.selectbox('Год',sorted(money_data['Год'].unique(),reverse=True))
     with col2:
         source = st.selectbox('Источник финансирования',np.concatenate([pd.Series(['Все']),money_data['Источник'].unique()]))
-    filtered_data = money_data.query("Год == @year")    
+    filtered_data = money_data.query("Год == @year") 
+       
     if source != 'Все': filtered_data = filtered_data.query("Источник == @source") 
     type_data = filtered_data.groupby(by=['Категория','Год'],as_index=False)['Расходы, млн. руб.'].sum()
     square_data = filtered_data.groupby(by=['Категория','Адрес'],as_index=False)['Площадь, кв.м.'].max()
@@ -562,11 +572,24 @@ if page[0] == 2:
     ######################################
     st.header('','section-3')
     st.header('')
-    fig = px.treemap(filtered_data, path=[px.Constant("Все"), 'Категория', 'Адрес', 'Статья расходов'], values='Расходы, млн. руб.',color_discrete_sequence=color_discrete_sequence)
-    fig.update_traces(root_color="lightgrey")
-    fig.update_layout(margin = dict(t=50, l=25, r=25, b=25))
-    fig.update_layout(title="Диаграмма расходов в "+str(year)+" году", width=1100, height = 600)
+    #filtered_data = filtered_data[filtered_data["Категория"] == 'балласт']
+    work_data = filtered_data
+    
+    #work_data["Категория"] =  work_data["Категория"].apply(customwrap)
+    #work_data["Адрес"] =  work_data["Адрес"].apply(customwrap)
+    work_data["Статья расходов"] =  work_data["Статья расходов"].apply(customwrap)
+    fig = px.treemap(work_data, path=[px.Constant("Все"), 'Категория', 'Адрес','Статья расходов'], values='Расходы, млн. руб.',color_discrete_sequence=color_discrete_sequence[0:])
+    fig.update_traces(root_color="lightgrey",textposition="middle center",textinfo = "label+percent parent",)
+    fig.update_layout(
+    #uniformtext=dict(minsize=12, mode='hide'),
+    margin = dict(t=50, l=25, r=25, b=25)
+    )
+    
+    
+    fig.update_layout(title="Диаграмма расходов в "+str(year)+" году", width=1920, height = 1080)
     st.plotly_chart(fig)
+    fig.write_image("images/fig1-1.svg")
+    fig.write_image("images/fig1-1.pdf")
 
     #######################################
     st.header('','section-4')
@@ -879,6 +902,7 @@ if page[0] == 4:
     miit['Аудитория'] = miit['Занятие'].str.split("Аудитория ").apply(lambda x: x[1])
     miit['Аудитория'] = miit['Аудитория'].str.split(" ").apply(lambda x: x[0])
     miit['Корпус'] = miit['Аудитория'].apply(lambda x: x[0] if len(x)==4 else x[:2])
+
     test = miit[miit['Аудитория'] == '3215']
     
     def repair_building(building):
@@ -911,7 +935,7 @@ if page[0] == 4:
     miit['Аудитория'] = miit['Аудитория'].replace("3210","3216")
     test = miit[miit['Корпус'] == 'ГУК-3']
     test = test['Аудитория'].sort_values(ascending=False).unique()
-    
+    miit = miit[miit['Корпус'] != 'ГУК-6']
     st.subheader('Анализ расписания РУТ за 2-ой семестр 2021-2022 учебного года')
     
     places = miit.groupby('Корпус',as_index=False)['Аудитория'].nunique()
@@ -1048,3 +1072,6 @@ if page[0] == 4:
     aud_df = aud_df.rename(columns={"Дата":"Количество занятий"})
     aud_df["% загрузки"] =aud_df["Количество занятий"] * 100 / (max_lessons_1 * len(week_days) * 2)
     aud_df
+    
+    df_xlsx = to_excel(aud_df)
+    st.download_button(label='📥 Скачать', data=df_xlsx, file_name= 'Аудитории.xlsx')
