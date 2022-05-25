@@ -586,10 +586,10 @@ if page[0] == 2:
     )
     
     
-    fig.update_layout(title="Диаграмма расходов в "+str(year)+" году", width=1920, height = 1080)
+    fig.update_layout(title="Диаграмма расходов в "+str(year)+" году", width=1100, height = 600)
     st.plotly_chart(fig)
-    fig.write_image("images/fig1-1.svg")
-    fig.write_image("images/fig1-1.pdf")
+    #fig.write_image("images/fig1-1.svg")
+    #fig.write_image("images/fig1-1.pdf")
 
     #######################################
     st.header('','section-4')
